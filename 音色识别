@@ -1,0 +1,95 @@
+import argparse
+import functools
+import gc
+import os
+import shutil
+
+import numpy as np
+import tensorflow as tf
+import torch
+
+from utils.reader import load_audio
+from utils.utility import add_arguments
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+parser = argparse.ArgumentParser(description=__doc__)
+add_arg = functools.partial(add_arguments, argparser=parser)
+add_arg('audio_path1', str, 'tag/person1.wav', '标准的角色1音频')  # 自己准备的标准音频，下面两个也是
+add_arg('audio_path2', str, 'tag/person2.wav', '标准的角色2音频')
+add_arg('audio_path3', str, 'tag/person3.wav', '标准的角色3音频')
+add_arg('input_shape', str, '(257, 257, 1)', '数据输入的形状')
+add_arg('threshold', float, 0.7, '判断是否为同一个人的阈值')
+add_arg('model_path', str, 'models/infer_model.h5', '预测模型的路径')  # 作者的预训练模型
+args = parser.parse_args()
+
+# 加载模型
+model = tf.keras.models.load_model(args.model_path, compile=False)
+model = tf.keras.models.Model(inputs=model.input, outputs=model.get_layer('batch_normalization').output)
+
+# 数据输入的形状
+input_shape = eval(args.input_shape)
+
+person_a = "person1"
+person_b = "person2"
+person_c = "person3"
+
+
+def out_feature(feature, f_x):
+    res = torch.dot(feature, f_x) / (torch.linalg.norm(feature) * torch.linalg.norm(f_x))
+    return res.cpu().numpy()
+
+
+def torch_cos(a, b):
+    d = torch.mul(a, b)  # 计算对应元素相乘
+    a_len = torch.norm(a, dim=1)  # 2范数，也就是模长
+    b_len = torch.norm(b, dim=1)
+    cos = torch.sum(d, dim=1) / (a_len * b_len)  # 得到相似度
+    return cos
+
+
+# 预测音频
+def infer(audio_path):
+    try:
+        data = load_audio(audio_path, mode='test', spec_len=input_shape[1])
+        data = data[np.newaxis, :]
+        feature = model.predict(data)
+        return torch.tensor(feature[0])
+    except Exception as e:
+        pass
+
+
+if __name__ == '__main__':
+
+    # 预测的两个音频文件
+    feature1 = infer(args.audio_path1)
+    feature2 = infer(args.audio_path2)
+    feature3 = infer(args.audio_path3)
+
+    raw_path = "./raw_wavs"  # 上传到集群的解包音频文件位置
+    res_path = "./result"
+    dirs = os.listdir(raw_path)
+    for audio in dirs:
+        try:
+            print("file_name:%s" % audio)
+            person_x = raw_path + '/%s' % audio
+            feature_x = infer(person_x)
+            # 对角余弦值
+            dist1 = out_feature(feature1, feature_x)
+            if dist1 > args.threshold:
+                print("%s 符合角色1模型，相似度为：%f" % (person_x, dist1))
+                shutil.move(raw_path + "/%s" % audio, res_path + "/%s/" % person_a)  # 移动音频文件，路径自选
+            else:
+                dist2 = out_feature(feature2, feature_x)
+                if dist2 > args.threshold:
+                    print("%s 符合角色2模型，相似度为：%f" % (person_x, dist2))
+                    shutil.move(raw_path + "/%s" % audio, res_path + "/%s/" % person_b)
+                else:
+                    dist3 = out_feature(feature3, feature_x)
+                    if dist3 > args.threshold:
+                        print("%s 符合角色3模型，相似度为：%f" % (person_x, dist3))
+                        shutil.move(raw_path + "/%s" % audio, res_path + "/%s/" % person_c)
+        except Exception as e:
+            pass
+
+        gc.collect()
