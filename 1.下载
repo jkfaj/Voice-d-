@@ -1,0 +1,66 @@
+import subprocess
+import json
+import requests
+
+def use_api(file):
+    headers = {
+        'Authorization': 'Bearer sk-your key',
+    }
+
+    files = {
+        'file': open(file, 'rb'),
+        'model': (None, 'whisper-1'),
+        'response_format': (None, 'srt'),
+    }
+
+    response = requests.post('https://api.openai.com/v1/audio/transcriptions', headers=headers, files=files)
+    return response
+
+# extract video info
+def extract_video_info(url):
+    cmd = 'you-get --json ' + url
+    # subprocess.run(cmd, shell=True)
+    json_obj = json.loads(subprocess.check_output(cmd, shell=True))
+    return json_obj
+
+# use you-get to download video
+def download_video(url, path, filename):
+    cmd = 'you-get -o ' + path + ' -O '+ filename + ' ' + url
+    subprocess.run(cmd, shell=True)
+
+# use ffmpeg to convert video to mp3
+def convert_video_to_mp3(video_path, mp3_path):
+    cmd = 'ffmpeg -i ' + video_path + ' -vn -ar 44100 -ac 2 -ab 192k -f mp3 ' + mp3_path
+    subprocess.run(cmd, shell=True)
+
+def main():
+    while True:
+        url = input('Please input the url of the video: ')
+        # 'https://www.youtube.com/watch?v=6ZfuNTqbHE8'
+        # 'https://www.bilibili.com/video/BV1eY41167LT/'
+        print('Extracting video info...\n')
+        json_obj = extract_video_info(url)
+        title = json_obj['title']
+        stream = json_obj['streams']
+        
+        min_size = float('inf')
+        # 用一个变量来保存最小值对应的键，初始值为空字符串
+        min_key = ''
+
+        # 遍历所有键值对，更新最小值和对应的键
+        for key, value in stream.items():
+            if value['size'] < min_size:
+                min_size = value['size']
+                min_key = key
+        min_video = stream[min_key]
+        container = min_video['container']
+        # print(title)
+        filename = title + '.' + container
+        download_video(url, './', title)
+        convert_video_to_mp3(filename, title + '.mp3')
+        with open(title + '.srt', 'w') as f:
+            response = use_api(title + '.mp3')
+            f.write(response.text)
+
+if __name__ == '__main__':
+    main()
