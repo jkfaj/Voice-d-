@@ -15,12 +15,12 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
-add_arg('audio_path1', str, 'tag/person1.wav', '标准的角色1音频')  # 自己准备的标准音频，下面两个也是
-add_arg('audio_path2', str, 'tag/person2.wav', '标准的角色2音频')
-add_arg('audio_path3', str, 'tag/person3.wav', '标准的角色3音频')
+add_arg('audio_path1', str, 'C:\\Users\\Administrator\\Desktop\\test2\\音纹库\\tag\\person1.wav', '标准的角色1音频')  # 自己准备的标准音频，下面两个也是
+add_arg('audio_path2', str, 'C:\\Users\\Administrator\\Desktop\\test2\\音纹库\\tag\\person2.wav', '标准的角色2音频')
+add_arg('audio_path3', str, 'C:\\Users\\Administrator\\Desktop\\test2\\音纹库\\tag\\person3.wav', '标准的角色3音频')
 add_arg('input_shape', str, '(257, 257, 1)', '数据输入的形状')
 add_arg('threshold', float, 0.7, '判断是否为同一个人的阈值')
-add_arg('model_path', str, 'models/infer_model.h5', '预测模型的路径')  # 作者的预训练模型
+add_arg('model_path', str,'C:\\Users\\Administrator\\Desktop\\test2\\音纹库\\models/infer_model.h5', '预测模型的路径')  # 作者的预训练模型
 args = parser.parse_args()
 
 # 加载模型
@@ -66,8 +66,8 @@ if __name__ == '__main__':
     feature2 = infer(args.audio_path2)
     feature3 = infer(args.audio_path3)
 
-    raw_path = "./raw_wavs"  # 上传到集群的解包音频文件位置
-    res_path = "./result"
+    raw_path = "C:\\Users\\Administrator\\Desktop\\test2\\音纹库\\raw_wavs"  # 上传到集群的解包音频文件位置
+    res_path = "C:\\Users\\Administrator\\Desktop\\test2\\音纹库\\tag\\result"
     dirs = os.listdir(raw_path)
     for audio in dirs:
         try:
