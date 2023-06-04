@@ -1,1 +1,9 @@
 
+from  moviepy.editor import *
+import os
+
+#audio_path=''
+#video_path=''
+
+audio = AudioFileClip(r"F:\video\01.wav")
+VideoFileClip(r"F:\video\01.mp4").set_audio(audio).write_videofile(r'f:\video\01.mp4')
